@@ -1,10 +1,10 @@
 // TODO
 .container {     
-    padding: 3rem;
+    padding: 1rem 3rem;
         
     .posts{        
         max-width: 700px;   
-        margin: 3rem auto;  
+        margin: 1rem auto;  
 
         display: flex;
         flex-direction: column;
@@ -27,15 +27,15 @@
                 background: #171b22;
             };
 
-            h1{
+            > h1{
                 font-size: 28px;
                 font-weight: 700;
                 color: var(--gray-50);
             };
 
-            p{
+            > p{
                 color: var(--gray-200);
-                font-size: 18px;
+                font-size: 16px;
                 font-weight: 400;
             };
 

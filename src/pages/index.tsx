@@ -1,16 +1,18 @@
 import { GetStaticProps } from 'next';
 import Head from "next/head"
 import Link from 'next/link'
+import { useState } from 'react';
 
-import Prismic from '@prismicio/client'
-
+import Prismic, {  } from '@prismicio/client'
 import { getPrismicClient } from '../services/prismic';
 
 import commonStyles from '../styles/common.module.scss';
 import styles from './home.module.scss';
-
 import { FiUser, FiCalendar } from "react-icons/fi";
+
 import Header from '../components/Header';
+
+import { formatDate } from '../util/formatDate';
 
 interface Post {
   uid?: string;
@@ -31,14 +33,42 @@ interface HomeProps {
   postsPagination: PostPagination;
 }
 
+
 export default function Home(props: HomeProps) {
+  const [ posts, setPosts ] = useState(props.postsPagination.results);
+  const [ next, setNext ] = useState(props.postsPagination.next_page);
 
-  console.log("props")
-  console.log(props.postsPagination.results)
-  console.log("props")
+  async function handleShowMorePosts(){
+    
+    if(next){
+      const result = await fetch(next).then(Response => Response.json())
+      
+      result.results.map(e => {        
+        var post = {} as Post;
 
-  const posts = props.postsPagination.results;
-  
+        post = {
+          uid: e.uid,
+          first_publication_date: new Date(e.first_publication_date).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',    
+          }),
+          data: {
+            title: e.data.title,
+            subtitle: e.data.subtitle,
+            author: e.data.author,
+          },
+        }
+        
+        setPosts(posts => [...posts, post])
+        props.postsPagination.results.push(post)
+      })
+
+      setNext(result.next_page)
+      props.postsPagination.next_page = result.next_page
+    }
+  }
+
   return (
     <>
       <Head>
@@ -58,7 +88,7 @@ export default function Home(props: HomeProps) {
                 <p>{post.data.subtitle}</p>
                 
                 <div className={styles.teste}>
-                  <span><FiCalendar />{post.first_publication_date}</span>
+                  <span><FiCalendar />{formatDate(post.first_publication_date)}</span>
                   <span><FiUser />{post.data.author}</span>
                 </div>    
               </a>
@@ -66,10 +96,12 @@ export default function Home(props: HomeProps) {
           ))}
           
         </section>     
-
-          <div className={styles.load_more}>
-            <button>Carregar mais posts</button>
-          </div>
+          {next != null ?
+            <div className={styles.load_more}>
+              <button onClick={ () => { handleShowMorePosts() } }>Carregar mais posts</button>
+            </div> 
+         : ""}
+          
       </main>
     </>
   )
@@ -83,7 +115,7 @@ export const getStaticProps: GetStaticProps = async () => {
       ], 
         {
           fetch: ['publication.title', 'publication.content'],
-          pageSize: 100,
+          pageSize: 5,
         }
       )
     var resultados = [] as Post[];
@@ -91,11 +123,7 @@ export const getStaticProps: GetStaticProps = async () => {
     postsResponse.results.map(e => {
       resultados.push({
         uid: e.uid,
-        first_publication_date: new Date(e.first_publication_date).toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',    
-        }),
+        first_publication_date: e.first_publication_date,
         data: {
           title: e.data.title,
           subtitle: e.data.subtitle,
@@ -112,6 +140,7 @@ export const getStaticProps: GetStaticProps = async () => {
     return {
       props: {
         postsPagination
-      }
+      },
+      revalidate: 60 * 60 * 12 // 12horas
   }
 };

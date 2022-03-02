@@ -4,29 +4,22 @@ import { FiCalendar, FiClock, FiUser } from 'react-icons/fi';
 import Header from '../../components/Header';
 
 import { getPrismicClient } from '../../services/prismic';
+import Prismic from "@prismicio/client";
 
 import commonStyles from '../../styles/common.module.scss';
 import styles from './post.module.scss';
 
-import Prismic from '@prismicio/client'
-
-import { format } from 'date-fns';
-import ptBR from 'date-fns/locale/pt-BR';
 import { RichText } from 'prismic-dom';
-
-format(
-	new Date(),
-	"'Hoje é' eeee",
-	{
-		locale: ptBR,
-	}
-)
-
+import { useRouter } from 'next/router';
+import { formatDate } from '../../util/formatDate';
+import { useEffect, useState } from 'react';
 
 interface Post {
+  uid: string,
   first_publication_date: string | null,
   data: {
     title: string,
+    subtitle: string,
     banner: {
       url: string,
     };
@@ -45,25 +38,58 @@ interface PostProps {
 }
 
 //Contador de segundos de leitura... recebe html em string
-function readingRate(content) {
-  let readingRateInSeconds = 0;
-
-  // Quantidade de palavras do texto
-  const wordCount = content.split(" ").length;
-  // Processando o tempo de leitura
-  readingRateInSeconds = (wordCount*60)/200;
-
-  return readingRateInSeconds / 60;
+function readingRate(length) {
+  if(length > 0 ){
+    let readingRateInSeconds = 0;
+  
+    // Quantidade de palavras do texto
+    // const wordCount = content.split(" ").length;
+    const wordCount = length;
+    
+    // Processando o tempo de leitura
+    readingRateInSeconds = (wordCount*60)/160;
+  
+    return readingRateInSeconds / 60;
+  }
+  return 0
 }
 
 export default function Post(props: PostProps) {
+  const router = useRouter()
+
+  if(router.isFallback){
+    return (
+      <>      
+        <div className={styles.fallback}>
+          Carregando...
+        </div>
+      </>
+    )
+  }
+
   const postData = props.post.data
 
-  let min_reading = 0;
-
+  let reading = 0;
+  
   postData.content.forEach(e => {
-    min_reading += readingRate(e.body)
+
+    var textBody = ' '
+    var textHead = e.heading
+    
+    e.body.forEach(i => {
+      textBody += i.text
+    })
+
+    var minBody = readingRate(textBody.split(" ").length)
+    var minHead = readingRate(textHead.length)
+    
+    reading = reading + minBody + minHead
+        
   })
+
+  const minReading = reading.toFixed(0)
+
+  const date_post = formatDate(props.post.first_publication_date);
 
   return (
     <>    
@@ -82,15 +108,15 @@ export default function Post(props: PostProps) {
         <h1>{postData.title}</h1>
         
         <div className={styles.infos_post}>
-          <span><FiCalendar />{ props.post.first_publication_date }</span>
+          <span><FiCalendar />{ date_post }</span>
           <span><FiUser />{postData.author}</span>
-          <span><FiClock />{`${min_reading.toFixed(0)} min`}</span>
+          <span><FiClock />{minReading + ' min'}</span>
         </div>
 
         { postData.content.map( data => (
               <div key={data.heading} className={styles.content}>
                 <h3>{data.heading}</h3>
-                <div dangerouslySetInnerHTML={{ __html: data.body.toString() }} className={styles.content_body}></div>
+                <div dangerouslySetInnerHTML={{ __html: RichText.asHtml(data.body) }} className={styles.content_body}></div>
               </div>
             )
           )
@@ -102,40 +128,41 @@ export default function Post(props: PostProps) {
   )
 }
 
-export const getStaticPaths = () => {
-    return {
-        paths: [],
-        fallback: 'blocking'
+export const getStaticPaths = async () => {
+  
+  const docs = await getPrismicClient().query(
+    Prismic.Predicates.at('document.type', 'post'),
+    { lang: '*' }
+  );
+  return {
+    paths: docs.results.map((doc) => {
+      return { params: { slug: doc.uid }};
+    }),
+        fallback: false,
     }
 }
 
 export const getStaticProps: GetStaticProps = async ({params}) => {
   const { slug } = params;
 
-  const prismic = getPrismicClient();
-
-  
+  const prismic = getPrismicClient();  
     const response = await prismic.getByUID( 'post', String(slug), {});
   
     var content = []; 
 
-    console.log(response.data)  
-
     response.data.content.map( conteudos => {
       content.push({
         heading: conteudos.heading,
-        body: RichText.asHtml(conteudos.body)
+        body: conteudos.body
       })
     })
     
     const post: Post = {
-      first_publication_date: new Date(response.first_publication_date).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',    
-      }),
+      uid: response.uid,
+      first_publication_date: response.first_publication_date,
       data: {
         title: response.data.title,
+        subtitle: response.data.subtitle,
         banner: {
           url: response.data.banner.url,
         },
