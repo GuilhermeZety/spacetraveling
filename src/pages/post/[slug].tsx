@@ -1,4 +1,4 @@
-import { GetStaticPaths, GetStaticProps } from 'next';
+import {  GetStaticProps } from 'next';
 import Head from 'next/head';
 import { FiCalendar, FiClock, FiUser } from 'react-icons/fi';
 import Header from '../../components/Header';
@@ -6,13 +6,12 @@ import Header from '../../components/Header';
 import { getPrismicClient } from '../../services/prismic';
 import Prismic from "@prismicio/client";
 
-import commonStyles from '../../styles/common.module.scss';
 import styles from './post.module.scss';
 
 import { RichText } from 'prismic-dom';
 import { useRouter } from 'next/router';
 import { formatDate } from '../../util/formatDate';
-import { useEffect, useState } from 'react';
+import { useUtterances } from '../../components/Comments';
 
 interface Post {
   uid: string,
@@ -91,6 +90,8 @@ export default function Post(props: PostProps) {
 
   const date_post = formatDate(props.post.first_publication_date);
 
+  useUtterances('uterrance')
+
   return (
     <>    
       <Head>
@@ -123,7 +124,7 @@ export default function Post(props: PostProps) {
         }
        
       </section>
-
+      <div id='uterrance'></div>
     </>
   )
 }
