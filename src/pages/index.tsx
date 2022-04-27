@@ -48,11 +48,7 @@ export default function Home(props: HomeProps) {
 
         post = {
           uid: e.uid,
-          first_publication_date: new Date(e.first_publication_date).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',    
-          }),
+          first_publication_date: e.first_publication_date,
           data: {
             title: e.data.title,
             subtitle: e.data.subtitle,
